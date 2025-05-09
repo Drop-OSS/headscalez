@@ -1,6 +1,6 @@
 {
-  "name": "mongoz",
-  "version": "0.0.2",
+  "name": "@drop-oss/headscalez",
+  "version": "0.0.3",
   "repository": "https://githu.com/Drop-OSS/headscalez",
   "license": "MIT",
   "main": "./dist/index.js",
