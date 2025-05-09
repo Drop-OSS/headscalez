@@ -1,10 +1,7 @@
-import { defineBuildConfig } from 'unbuild'
+import { defineBuildConfig } from "unbuild";
 
 export default defineBuildConfig({
   declaration: true,
-  entries: [
-    './src/cli',
-    './src/index'
-  ],
-  inlineDependencies: true
-})
+  entries: ["./src/cli", "./src/index"],
+  failOnWarn: false,
+});

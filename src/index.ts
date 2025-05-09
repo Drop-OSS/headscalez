@@ -3,11 +3,9 @@ import os from "os";
 import fs, { ReadStream } from "fs";
 import fsExtra from "fs-extra";
 import { ofetch } from "ofetch";
-import type { ExecaChildProcess } from "execa";
-import execa from "execa";
+import { execa, ResultPromise } from "execa";
 import { onShutdown } from "node-graceful-shutdown";
 import { headscaleFormula as formula } from "./formula";
-import stream, { Stream, Writable } from "stream";
 import createConfig from "./config";
 
 export interface HeadscaleOptions {
@@ -22,8 +20,8 @@ export interface HeadscaleOptions {
 export type HeadscaleOptionsResolved = Required<HeadscaleOptions>;
 
 export interface HeadscaleService {
-  service: ExecaChildProcess;
-  close: () => Promise<void>;
+  service: ResultPromise<{}>;
+  close: () => Promise<boolean>;
 }
 
 export async function startHeadscale(
@@ -56,11 +54,11 @@ export async function startHeadscale(
   // config consts
   const databasePath = path.resolve(opts.dir, "headscale.sqlite");
   const cachePath = path.resolve(opts.dir, "cache");
-  const noisePrivateKey = path.resolve(opts.dir, "noise_private.key")
+  const noisePrivateKey = path.resolve(opts.dir, "noise_private.key");
   const derpPrivateKey = path.resolve(opts.dir, "derp_private.key");
 
   const socketPath = path.resolve(opts.dir, "headscale.socket");
-  
+
   // log/config
   const configPath = path.resolve(opts.dir, "config.yaml");
   const logPath = path.resolve(opts.dir, "headscale.log");
@@ -73,7 +71,7 @@ export async function startHeadscale(
     const response = await ofetch<ReadableStream>(platform.source, {
       responseType: "stream" as any,
     });
-    const destination: Writable = fs.createWriteStream(binaryPath);
+    const destination = fs.createWriteStream(binaryPath);
 
     await response.pipeTo(
       new WritableStream({
@@ -93,7 +91,13 @@ export async function startHeadscale(
     await execa("chmod", ["+x", binaryPath]);
   }
 
-  const config = createConfig(opts, { databasePath, cachePath, noisePrivateKey, derpPrivateKey, socketPath });
+  const config = createConfig(opts, {
+    databasePath,
+    cachePath,
+    noisePrivateKey,
+    derpPrivateKey,
+    socketPath,
+  });
   fs.writeFileSync(configPath, config);
 
   // Port and args
@@ -111,9 +115,11 @@ export async function startHeadscale(
     stderr,
   });
 
-  const close = () => Promise.resolve(service.cancel());
+  const close = () => Promise.resolve(service.kill());
 
-  onShutdown(() => close());
+  onShutdown(async () => {
+    close();
+  });
 
   return {
     service,
