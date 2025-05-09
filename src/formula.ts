@@ -1,21 +1,25 @@
-export const mongoFormula = {
-  name: 'mongo',
-  version: '4.4.6',
-  port: 27017,
-  exec: 'bin/mongod',
-  execArgs: '--port {port} --dbpath {data}',
+export const headscaleFormula = {
+  name: "headscale",
+  version: "0.25.1",
+  execArgs: "serve -c {config}",
   platforms: [
     {
-      name: 'linux',
-      source: 'https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-ubuntu2004-4.4.6.tgz'
+      name: "linux",
+      arch: "x64",
+      source:
+        "https://github.com/juanfont/headscale/releases/download/v0.25.1/headscale_0.25.1_linux_amd64",
     },
     {
-      name: 'win32',
-      source: 'https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-4.4.6.zip'
+      name: "linux",
+      arch: "arm64",
+      source:
+        "https://github.com/juanfont/headscale/releases/download/v0.25.1/headscale_0.25.1_linux_arm64",
     },
     {
-      name: 'darwin',
-      source: 'https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-4.4.6.tgz'
-    }
-  ]
-}
+      name: "darwin",
+      arch: "arm64",
+      source:
+        "https://github.com/juanfont/headscale/releases/download/v0.25.1/headscale_0.25.1_darwin_arm64",
+    },
+  ],
+};

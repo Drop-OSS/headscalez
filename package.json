@@ -1,12 +1,12 @@
 {
   "name": "mongoz",
   "version": "0.0.2",
-  "repository": "unjs/mongoz",
+  "repository": "https://githu.com/Drop-OSS/headscalez",
   "license": "MIT",
   "main": "./dist/index.js",
   "exports": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "bin": "./bin/mongoz",
+  "bin": "./bin/headscalez",
   "files": [
     "dist",
     "bin"
@@ -20,12 +20,12 @@
     "test": "yarn lint"
   },
   "dependencies": {
-    "download": "^8.0.0",
-    "ora": "^5.4.1",
-    "decompress": "^4.2.1",
     "consola": "^2.15.3",
+    "decompress": "^4.2.1",
     "fs-extra": "^10.0.0",
-    "node-graceful-shutdown": "^1.1.0"
+    "node-graceful-shutdown": "^1.1.0",
+    "ofetch": "^1.4.1",
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "@nuxtjs/eslint-config-typescript": "^6.0.1",

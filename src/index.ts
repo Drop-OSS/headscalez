@@ -1,103 +1,122 @@
-import path from 'path'
-import os from 'os'
-import fsExtra from 'fs-extra'
-import download from 'download'
-import consola from 'consola'
-import decompress from 'decompress'
-import type { ExecaChildProcess } from 'execa'
-import execa from 'execa'
-import ora from 'ora'
-import { onShutdown } from 'node-graceful-shutdown'
-import { mongoFormula as formula } from './formula'
+import path from "path";
+import os from "os";
+import fs, { ReadStream } from "fs";
+import fsExtra from "fs-extra";
+import { ofetch } from "ofetch";
+import type { ExecaChildProcess } from "execa";
+import execa from "execa";
+import { onShutdown } from "node-graceful-shutdown";
+import { headscaleFormula as formula } from "./formula";
+import stream, { Stream, Writable } from "stream";
+import createConfig from "./config";
 
-export interface MongoOptions {
-  name?: string
-  platform?: string
-  dir?: string
-  port?: string | number
-  args?: string[]
+export interface HeadscaleOptions {
+  platform?: string;
+  arch?: string;
+  dir?: string;
+  port?: string | number;
+  args?: string[];
+  externalUrl: string;
 }
 
-export interface MongoService {
-  service: ExecaChildProcess
-  close: () => Promise<void>
+export type HeadscaleOptionsResolved = Required<HeadscaleOptions>;
+
+export interface HeadscaleService {
+  service: ExecaChildProcess;
+  close: () => Promise<void>;
 }
 
-export async function startMongo (opts: MongoOptions): Promise<MongoService> {
+export async function startHeadscale(
+  _opts: HeadscaleOptions
+): Promise<HeadscaleService> {
   // Apply defaults
-  opts = {
-    name: process.env.MONGO_NAME || 'default',
-    port: process.env.MONGO_PORT || process.env.PORT || formula.port,
-    platform: process.env.MONGO_PLATFORM || process.platform,
-    dir: process.env.MONGO_DIR || path.resolve(os.tmpdir(), 'mongo'),
-    ...opts
-  }
+  const opts: HeadscaleOptionsResolved = {
+    port: process.env.HEADSCALE_PORT || process.env.PORT || 8080,
+    platform: process.env.HEADSCALE_PLATFORM || process.platform,
+    arch: process.env.HEADSCALE_ARCH || process.arch,
+    dir: process.env.HEADSCALE_DIR || path.resolve(os.tmpdir(), "headscalez"),
+    args: [],
+    ..._opts,
+  };
 
   // Find platform
-  const platform = formula.platforms.find(p => p.name === opts.platform)
+  const platform = formula.platforms.find(
+    (p) => p.name === opts.platform && p.arch == opts.arch
+  );
   if (!platform) {
-    throw new Error(`Platform '${opts.platform}' is not available for '${formula.name}'`)
+    throw new Error(
+      `Platform '${opts.platform}/${opts.arch}' is not available for '${formula.name}'`
+    );
   }
 
   // Resolve paths
-  const dataDir = path.resolve(opts.dir, 'data', opts.name, formula.name)
-  const logsDir = path.resolve(opts.dir, 'logs', opts.name, formula.name)
-  const logFile = path.resolve(logsDir, 'logs.txt')
-  const sourceDir = path.resolve(opts.dir, 'source', formula.name, formula.version, platform.name)
-  const sourceFileName = `${formula.name}-${formula.version}-${platform.name}` + path.extname(platform.source)
-  const sourceFile = path.resolve(sourceDir, sourceFileName)
-  const extractDir = path.resolve(sourceDir, 'unpacked')
-  const execFile = path.resolve(extractDir, formula.exec)
+  const dataDir = path.resolve(opts.dir);
+  const binaryPath = path.resolve(opts.dir, "headscale");
+
+  // config consts
+  const databasePath = path.resolve(opts.dir, "headscale.sqlite");
+  const cachePath = path.resolve(opts.dir, "cache");
+  const noisePrivateKey = path.resolve(opts.dir, "noise_private.key")
+  const derpPrivateKey = path.resolve(opts.dir, "derp_private.key");
+
+  const socketPath = path.resolve(opts.dir, "headscale.socket");
+  
+  // log/config
+  const configPath = path.resolve(opts.dir, "config.yaml");
+  const logPath = path.resolve(opts.dir, "headscale.log");
 
   // Ensure data dir exists
-  await fsExtra.mkdirp(dataDir)
-
-  // Show a spinner
-  const spinner = ora()
+  await fsExtra.mkdirp(dataDir);
 
   // Ensure package is installed
-  if (!fsExtra.existsSync(extractDir) || !fsExtra.existsSync(execFile)) {
-    if (!fsExtra.existsSync(sourceFile)) {
-      const dlMessage = `Downloading ${sourceFileName}`
-      spinner.start(dlMessage + '...')
-      const res = download(platform.source, sourceDir, { filename: sourceFileName })
-      res.on('downloadProgress', (e) => {
-        spinner.text = `${dlMessage} | ${Math.round(e.percent * 100)}%`
-      })
-      await res
-    }
-    spinner.start(`Decompressing ${sourceFileName}...`)
-    await decompress(sourceFile, extractDir, { strip: 1 })
-    spinner.stop()
-  }
-  await fsExtra.mkdirp(logsDir)
-  await fsExtra.remove(logFile)
+  if (!fsExtra.existsSync(binaryPath)) {
+    const response = await ofetch<ReadableStream>(platform.source, {
+      responseType: "stream" as any,
+    });
+    const destination: Writable = fs.createWriteStream(binaryPath);
 
-  // Open logs file
-  const logsFile = await fsExtra.open(logFile, 'w+')
-  const stdout = logsFile
-  const stderr = logsFile
-  consola.info(`Writing logs to: ${logFile}`)
+    await response.pipeTo(
+      new WritableStream({
+        start(controller) {},
+        write(chunk, controller) {
+          destination.write(chunk);
+        },
+        close() {
+          destination.end();
+        },
+        abort(reason) {
+          throw reason; // fuck it lol
+        },
+      })
+    );
+
+    await execa("chmod", ["+x", binaryPath]);
+  }
+
+  const config = createConfig(opts, { databasePath, cachePath, noisePrivateKey, derpPrivateKey, socketPath });
+  fs.writeFileSync(configPath, config);
 
   // Port and args
-  const execArgs = formula.execArgs.replace('{port}', opts.port + '').replace('{data}', dataDir).split(' ')
+  const execArgs = formula.execArgs.replace("{config}", configPath).split(" ");
   if (Array.isArray(opts.args)) {
-    execArgs.push(...opts.args)
+    execArgs.push(...opts.args);
   }
 
   // Start app
-  spinner.info(`Starting ${formula.name} at port ${opts.port}`)
-  const service = execa(execFile, execArgs, {
+  const logsFile = await fsExtra.open(logPath, "w+");
+  const stdout = logsFile;
+  const stderr = logsFile;
+  const service = execa(binaryPath, execArgs, {
     stdout,
-    stderr
-  })
+    stderr,
+  });
 
-  const close = () => Promise.resolve(service.cancel())
+  const close = () => Promise.resolve(service.cancel());
 
-  onShutdown(() => close())
+  onShutdown(() => close());
 
   return {
     service,
-    close
-  }
+    close,
+  };
 }
