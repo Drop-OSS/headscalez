@@ -1,0 +1,3 @@
+[submodule "headscale"]
+	path = headscale
+	url = https://github.com/juanfont/headscale.git
