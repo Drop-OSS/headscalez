@@ -1,6 +1,6 @@
 {
   "name": "@drop-oss/headscalez",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "repository": "https://githu.com/Drop-OSS/headscalez",
   "license": "MIT",
   "main": "./dist/index.js",
