@@ -21,6 +21,7 @@ export type HeadscaleOptionsResolved = Required<HeadscaleOptions>;
 
 export interface HeadscaleService {
   service: ResultPromise<{}>;
+  endpoint: string;
   close: () => Promise<boolean>;
 }
 
@@ -123,6 +124,7 @@ export async function startHeadscale(
 
   return {
     service,
+    endpoint: "127.0.0.1:50443",
     close,
   };
 }

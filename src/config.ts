@@ -45,7 +45,7 @@ listen_addr: 127.0.0.1:${opts.port}
 #
 # For production:
 # grpc_listen_addr: 0.0.0.0:50443
-# grpc_listen_addr: 127.0.0.1:50443
+grpc_listen_addr: 127.0.0.1:50443
 
 # Allow the gRPC admin interface to run in INSECURE
 # mode. This is not recommended as the traffic will
