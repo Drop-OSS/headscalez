@@ -3,7 +3,7 @@ import { HeadscaleService } from "..";
 import { HeadscaleServiceClient } from "./generated/headscale/v1/headscale.client";
 import { GrpcWebFetchTransport } from "@protobuf-ts/grpcweb-transport";
 
-class HeadscaleControlService {
+export class HeadscaleControlService {
   private service: HeadscaleService;
   client: HeadscaleServiceClient;
 

@@ -8,6 +8,9 @@ import { onShutdown } from "node-graceful-shutdown";
 import { headscaleFormula as formula } from "./formula";
 import createConfig from "./config";
 
+// Incldue gRPC stuff in final builds
+export * from "./grpc";
+
 export interface HeadscaleOptions {
   platform?: string;
   arch?: string;
